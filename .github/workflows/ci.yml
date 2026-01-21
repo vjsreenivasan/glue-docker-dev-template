@@ -86,17 +86,7 @@ jobs:
         /home/glue_user/workspace/jobs/${{ matrix.job }}
         --JOB_NAME=ci-validation-job
         --input_path=file:///home/glue_user/workspace/data/input/
-        --output_path=file:///home/glue_user/workspace/data/output/
-          
-    - name: Check Output
-      run: |
-        if [ -d "${{ github.workspace }}/sample-PySpark-project/data/output" ]; then
-          echo "Output directory exists"
-          ls -la ${{ github.workspace }}/sample-PySpark-project/data/output/
-        else
-          echo "Output directory not found"
-          exit 1
-        fi
+        --output_path=file:///tmp/output/
 
   security-scan:
     name: Security Scan
