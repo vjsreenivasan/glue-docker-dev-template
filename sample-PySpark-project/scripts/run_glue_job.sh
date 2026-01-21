@@ -47,7 +47,7 @@ fi
 # Run the Glue job in Docker
 docker run -it --rm \
     -v "${WORKSPACE_DIR}:/home/glue_user/workspace/" \
-    -e AWS_REGION=us-east-1 \
+    -e AWS_REGION=ap-southeast-1 \
     -e DISABLE_SSL=true \
     $ENV_VARS \
     $DEBUG_PORTS \

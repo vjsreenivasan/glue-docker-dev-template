@@ -17,7 +17,7 @@ echo ""
 
 docker run -it --rm \
     -v "${WORKSPACE_DIR}:/home/glue_user/workspace/" \
-    -e AWS_REGION=us-east-1 \
+    -e AWS_REGION=ap-southeast-1 \
     -e DISABLE_SSL=true \
     --name glue-shell \
     ${DOCKER_IMAGE} \

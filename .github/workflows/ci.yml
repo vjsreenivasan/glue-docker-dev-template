@@ -23,7 +23,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.11'
         
     - name: Install dependencies
       run: |
@@ -70,14 +70,15 @@ jobs:
         --platform ${{ env.DOCKER_PLATFORM }}
         -v ${{ github.workspace }}/sample-PySpark-project:/home/glue_user/workspace/
         ${{ env.DOCKER_IMAGE }}
-        -c "python3 -m py_compile /home/glue_user/workspace/jobs/${{ matrix.job }}"
+        -c "python3 -c 'import py_compile; py_compile.compile(\"/home/glue_user/workspace/jobs/${{ matrix.job }}\", cfile=\"/tmp/check.pyc\", doraise=True)'"
           
     - name: Run Glue Job
       run: >
         docker run --rm
         --platform ${{ env.DOCKER_PLATFORM }}
+        -e PYTHONDONTWRITEBYTECODE=1
         -v ${{ github.workspace }}/sample-PySpark-project:/home/glue_user/workspace/
-        -e AWS_REGION=us-east-1
+        -e AWS_REGION=ap-southeast-1
         -e DISABLE_SSL=true
         ${{ env.DOCKER_IMAGE }}
         spark-submit
