@@ -1,0 +1,17 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Run Glue Job in Docker",
+      "type": "shell",
+      "command": "cd ${workspaceFolder}/sample-PySpark-project/scripts && ./run_glue_job.sh ${fileBasenameNoExtension}.py",
+      "problemMatcher": [],
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated"
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+flake8
+black
+pylint
+bandit
+safety
+pre-commit
+isort
+mypy

@@ -1,0 +1,116 @@
+name: CI - Validate Glue Jobs
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+env:
+  DOCKER_IMAGE: amazon/aws-glue-libs:glue_libs_4.0.0_image_01
+
+jobs:
+  lint:
+    name: Lint Python Code
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8 black pylint
+        
+    - name: Run Black formatter check
+      run: |
+        black --check sample-PySpark-project/jobs/ sample-PySpark-project/lib/
+        
+    - name: Run Flake8
+      run: |
+        flake8 sample-PySpark-project/jobs/ sample-PySpark-project/lib/ --count --select=E9,F63,F7,F82 --show-source --statistics
+        flake8 sample-PySpark-project/jobs/ sample-PySpark-project/lib/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+  validate-jobs:
+    name: Validate Glue Jobs
+    runs-on: ubuntu-latest
+    needs: lint
+    
+    strategy:
+      matrix:
+        job: [simple_glue_job.py, sample_etl_job.py]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Pull Glue Docker Image
+      run: docker pull ${{ env.DOCKER_IMAGE }}
+      
+    - name: Validate Job Syntax
+      run: |
+        docker run --rm \
+          -v ${{ github.workspace }}/sample-PySpark-project:/home/glue_user/workspace/ \
+          ${{ env.DOCKER_IMAGE }} \
+          python3 -m py_compile /home/glue_user/workspace/jobs/${{ matrix.job }}
+          
+    - name: Run Glue Job
+      run: |
+        docker run --rm \
+          -v ${{ github.workspace }}/sample-PySpark-project:/home/glue_user/workspace/ \
+          -e AWS_REGION=us-east-1 \
+          -e DISABLE_SSL=true \
+          ${{ env.DOCKER_IMAGE }} \
+          spark-submit \
+          --py-files /home/glue_user/workspace/lib/ \
+          /home/glue_user/workspace/jobs/${{ matrix.job }} \
+          --JOB_NAME="ci-validation-job" \
+          --input_path="file:///home/glue_user/workspace/data/input/" \
+          --output_path="file:///home/glue_user/workspace/data/output/"
+          
+    - name: Check Output
+      run: |
+        if [ -d "${{ github.workspace }}/sample-PySpark-project/data/output" ]; then
+          echo "Output directory exists"
+          ls -la ${{ github.workspace }}/sample-PySpark-project/data/output/
+        else
+          echo "Output directory not found"
+          exit 1
+        fi
+
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.10'
+        
+    - name: Install safety
+      run: pip install safety bandit
+      
+    - name: Run Bandit security scan
+      run: |
+        bandit -r sample-PySpark-project/jobs/ sample-PySpark-project/lib/ -f json -o bandit-report.json || true
+        
+    - name: Upload security report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: security-report
+        path: bandit-report.json

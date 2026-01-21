@@ -1,0 +1,73 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Attach to Glue Job",
+      "type": "python",
+      "request": "attach",
+      "connect": {
+        "host": "localhost",
+        "port": 5678
+      },
+      "pathMappings": [
+        {
+          "localRoot": "${workspaceFolder}/sample-PySpark-project",
+          "remoteRoot": "/home/glue_user/workspace"
+        }
+      ],
+      "justMyCode": false
+    },
+    {
+      "name": "Run Current Glue Job in Docker (Debug Mode)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "cd ${workspaceFolder}/sample-PySpark-project/scripts && ./run_glue_job.sh ${fileBasenameNoExtension}.py --debug",
+      "cwd": "${workspaceFolder}",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated"
+      }
+    },
+    {
+      "name": "Run Current Glue Job in Docker",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "cd ${workspaceFolder}/sample-PySpark-project/scripts && ./run_glue_job.sh ${fileBasenameNoExtension}.py",
+      "cwd": "${workspaceFolder}",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated"
+      }
+    },
+    {
+      "name": "Start Glue Jupyter Notebook",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "cd ${workspaceFolder}/sample-PySpark-project/scripts && ./start_jupyter.sh",
+      "cwd": "${workspaceFolder}",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated"
+      }
+    },
+    {
+      "name": "Start Glue PySpark Shell",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "cd ${workspaceFolder}/sample-PySpark-project/scripts && ./start_shell.sh",
+      "cwd": "${workspaceFolder}",
+      "presentation": {
+        "echo": true,
+        "reveal": "always",
+        "focus": true,
+        "panel": "dedicated"
+      }
+    }
+  ]
+}

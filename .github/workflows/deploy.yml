@@ -1,0 +1,156 @@
+name: CD - Deploy to AWS
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'sample-PySpark-project/jobs/**'
+      - 'sample-PySpark-project/lib/**'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment Environment'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy:
+    name: Deploy Glue Jobs to AWS
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+        
+    - name: Set Environment Variables
+      run: |
+        ENV="${{ github.event.inputs.environment || 'dev' }}"
+        echo "ENVIRONMENT=${ENV}" >> $GITHUB_ENV
+        echo "S3_BUCKET=glue-scripts-${ENV}-${{ secrets.AWS_ACCOUNT_ID }}" >> $GITHUB_ENV
+        echo "S3_PREFIX=scripts/" >> $GITHUB_ENV
+        
+    - name: Create S3 Bucket if not exists
+      run: |
+        if ! aws s3 ls s3://${{ env.S3_BUCKET }} 2>&1 > /dev/null; then
+          echo "Creating S3 bucket: ${{ env.S3_BUCKET }}"
+          aws s3 mb s3://${{ env.S3_BUCKET }} --region ${{ env.AWS_REGION }}
+          aws s3api put-bucket-versioning --bucket ${{ env.S3_BUCKET }} --versioning-configuration Status=Enabled
+        else
+          echo "S3 bucket already exists: ${{ env.S3_BUCKET }}"
+        fi
+        
+    - name: Upload Glue Jobs to S3
+      run: |
+        aws s3 sync sample-PySpark-project/jobs/ s3://${{ env.S3_BUCKET }}/${{ env.S3_PREFIX }}jobs/ \
+          --exclude "*.pyc" \
+          --exclude "__pycache__/*" \
+          --delete
+          
+    - name: Upload Glue Libraries to S3
+      run: |
+        aws s3 sync sample-PySpark-project/lib/ s3://${{ env.S3_BUCKET }}/${{ env.S3_PREFIX }}lib/ \
+          --exclude "*.pyc" \
+          --exclude "__pycache__/*" \
+          --delete
+          
+    - name: Create/Update Glue Jobs
+      run: |
+        JOBS=("simple_glue_job" "sample_etl_job")
+        
+        for JOB_NAME in "${JOBS[@]}"; do
+          echo "Processing Glue Job: ${JOB_NAME}"
+          
+          # Check if job exists
+          if aws glue get-job --job-name "${JOB_NAME}-${{ env.ENVIRONMENT }}" 2>&1 > /dev/null; then
+            echo "Updating existing job: ${JOB_NAME}-${{ env.ENVIRONMENT }}"
+            aws glue update-job \
+              --job-name "${JOB_NAME}-${{ env.ENVIRONMENT }}" \
+              --job-update '{
+                "Role": "${{ secrets.GLUE_EXECUTION_ROLE_ARN }}",
+                "Command": {
+                  "Name": "glueetl",
+                  "ScriptLocation": "s3://${{ env.S3_BUCKET }}/${{ env.S3_PREFIX }}jobs/${JOB_NAME}.py",
+                  "PythonVersion": "3"
+                },
+                "DefaultArguments": {
+                  "--TempDir": "s3://${{ env.S3_BUCKET }}/temp/",
+                  "--job-language": "python",
+                  "--extra-py-files": "s3://${{ env.S3_BUCKET }}/${{ env.S3_PREFIX }}lib/",
+                  "--enable-spark-ui": "true",
+                  "--spark-event-logs-path": "s3://${{ env.S3_BUCKET }}/spark-logs/",
+                  "--enable-job-insights": "true",
+                  "--enable-glue-datacatalog": "true",
+                  "--enable-continuous-cloudwatch-log": "true",
+                  "--input_path": "s3://${{ env.S3_BUCKET }}/data/input/",
+                  "--output_path": "s3://${{ env.S3_BUCKET }}/data/output/"
+                },
+                "MaxRetries": 0,
+                "Timeout": 60,
+                "GlueVersion": "4.0",
+                "NumberOfWorkers": 2,
+                "WorkerType": "G.1X"
+              }'
+          else
+            echo "Creating new job: ${JOB_NAME}-${{ env.ENVIRONMENT }}"
+            aws glue create-job \
+              --name "${JOB_NAME}-${{ env.ENVIRONMENT }}" \
+              --role "${{ secrets.GLUE_EXECUTION_ROLE_ARN }}" \
+              --command '{
+                "Name": "glueetl",
+                "ScriptLocation": "s3://${{ env.S3_BUCKET }}/${{ env.S3_PREFIX }}jobs/${JOB_NAME}.py",
+                "PythonVersion": "3"
+              }' \
+              --default-arguments '{
+                "--TempDir": "s3://${{ env.S3_BUCKET }}/temp/",
+                "--job-language": "python",
+                "--extra-py-files": "s3://${{ env.S3_BUCKET }}/${{ env.S3_PREFIX }}lib/",
+                "--enable-spark-ui": "true",
+                "--spark-event-logs-path": "s3://${{ env.S3_BUCKET }}/spark-logs/",
+                "--enable-job-insights": "true",
+                "--enable-glue-datacatalog": "true",
+                "--enable-continuous-cloudwatch-log": "true",
+                "--input_path": "s3://${{ env.S3_BUCKET }}/data/input/",
+                "--output_path": "s3://${{ env.S3_BUCKET }}/data/output/"
+              }' \
+              --max-retries 0 \
+              --timeout 60 \
+              --glue-version "4.0" \
+              --number-of-workers 2 \
+              --worker-type "G.1X"
+          fi
+        done
+        
+    - name: Upload test data to S3 (Dev only)
+      if: env.ENVIRONMENT == 'dev'
+      run: |
+        aws s3 sync sample-PySpark-project/data/input/ s3://${{ env.S3_BUCKET }}/data/input/ \
+          --exclude "*.pyc"
+          
+    - name: Create Deployment Summary
+      run: |
+        echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Environment**: ${{ env.ENVIRONMENT }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Region**: ${{ env.AWS_REGION }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **S3 Bucket**: ${{ env.S3_BUCKET }}" >> $GITHUB_STEP_SUMMARY
+        echo "- **Script Location**: s3://${{ env.S3_BUCKET }}/${{ env.S3_PREFIX }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Deployed Jobs" >> $GITHUB_STEP_SUMMARY
+        echo "- simple_glue_job-${{ env.ENVIRONMENT }}" >> $GITHUB_STEP_SUMMARY
+        echo "- sample_etl_job-${{ env.ENVIRONMENT }}" >> $GITHUB_STEP_SUMMARY

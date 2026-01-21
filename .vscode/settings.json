@@ -1,0 +1,19 @@
+{
+  "python.analysis.extraPaths": [
+    "${workspaceFolder}/sample-PySpark-project/lib"
+  ],
+  "python.analysis.diagnosticSeverityOverrides": {
+    "reportMissingImports": "none",
+    "reportMissingModuleSource": "none"
+  },
+  "files.exclude": {
+    "**/__pycache__": true,
+    "**/*.pyc": true
+  },
+  "python.terminal.executeInFileDir": false,
+  "code-runner.executorMap": {
+    "python": "cd $workspaceRoot/sample-PySpark-project/scripts && ./run_glue_job.sh $fileNameWithoutExt.py"
+  },
+  "code-runner.clearPreviousOutput": true,
+  "code-runner.showExecutionMessage": true
+}
