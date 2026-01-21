@@ -35,10 +35,14 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Configure AWS Credentials (OIDC)
+    - name: Configure AWS Credentials (OIDC or Access Keys)
       uses: aws-actions/configure-aws-credentials@v4
       with:
+        # For OIDC: Set AWS_ROLE_ARN secret
         role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+        # For Access Keys: Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY secrets
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         aws-region: ${{ env.AWS_REGION }}
         
     - name: Set Environment Variables
