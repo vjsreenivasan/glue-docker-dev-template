@@ -58,25 +58,25 @@ jobs:
       run: docker pull ${{ env.DOCKER_IMAGE }}
       
     - name: Validate Job Syntax
-      run: |
-        docker run --rm \
-          -v ${{ github.workspace }}/sample-PySpark-project:/home/glue_user/workspace/ \
-          ${{ env.DOCKER_IMAGE }} \
-          /bin/bash -c "python3 -m py_compile /home/glue_user/workspace/jobs/${{ matrix.job }}"
+      run: >
+        docker run --rm
+        -v ${{ github.workspace }}/sample-PySpark-project:/home/glue_user/workspace/
+        ${{ env.DOCKER_IMAGE }}
+        python3 -m py_compile /home/glue_user/workspace/jobs/${{ matrix.job }}
           
     - name: Run Glue Job
-      run: |
-        docker run --rm \
-          -v ${{ github.workspace }}/sample-PySpark-project:/home/glue_user/workspace/ \
-          -e AWS_REGION=us-east-1 \
-          -e DISABLE_SSL=true \
-          ${{ env.DOCKER_IMAGE }} \
-          /bin/bash -c "spark-submit \
-          --py-files /home/glue_user/workspace/lib/ \
-          /home/glue_user/workspace/jobs/${{ matrix.job }} \
-          --JOB_NAME='ci-validation-job' \
-          --input_path='file:///home/glue_user/workspace/data/input/' \
-          --output_path='file:///home/glue_user/workspace/data/output/'"
+      run: >
+        docker run --rm
+        -v ${{ github.workspace }}/sample-PySpark-project:/home/glue_user/workspace/
+        -e AWS_REGION=us-east-1
+        -e DISABLE_SSL=true
+        ${{ env.DOCKER_IMAGE }}
+        spark-submit
+        --py-files /home/glue_user/workspace/lib/
+        /home/glue_user/workspace/jobs/${{ matrix.job }}
+        --JOB_NAME=ci-validation-job
+        --input_path=file:///home/glue_user/workspace/data/input/
+        --output_path=file:///home/glue_user/workspace/data/output/
           
     - name: Check Output
       run: |
