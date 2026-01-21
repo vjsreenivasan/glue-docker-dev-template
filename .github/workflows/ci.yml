@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
 
 env:
-  DOCKER_IMAGE: amazon/aws-glue-libs:glue_libs_4.0.0_image_01
+  DOCKER_IMAGE: public.ecr.aws/glue/aws-glue-libs:5 
 
 jobs:
   lint:

@@ -173,7 +173,7 @@ bandit -r sample-PySpark-project/jobs/ sample-PySpark-project/lib/
 
 ### Docker Image Not Found
 ```bash
-docker pull amazon/aws-glue-libs:glue_libs_4.0.0_image_01
+docker pull public.ecr.aws/glue/aws-glue-libs:5
 ```
 
 ### Permission Denied on Scripts
