@@ -66,10 +66,11 @@ jobs:
     - name: Validate Job Syntax
       run: >
         docker run --rm
+        --entrypoint /bin/sh
         --platform ${{ env.DOCKER_PLATFORM }}
         -v ${{ github.workspace }}/sample-PySpark-project:/home/glue_user/workspace/
         ${{ env.DOCKER_IMAGE }}
-        python3 -m py_compile /home/glue_user/workspace/jobs/${{ matrix.job }}
+        -c "python3 -m py_compile /home/glue_user/workspace/jobs/${{ matrix.job }}"
           
     - name: Run Glue Job
       run: >
